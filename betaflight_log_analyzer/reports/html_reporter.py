@@ -19,7 +19,8 @@ class HTMLReporter:
         self.log_file_path = log_file_path
         self.log_name = os.path.basename(log_file_path)
     
-    def generate_report(self, analysis_results, recommendations, recommendations_text, segment_plots):
+    def generate_report(self, analysis_results, recommendations, recommendations_text, segment_plots,
+                     advanced_results=None, advanced_plots=None):
         """
         Generate an HTML report from analysis results
         
@@ -28,13 +29,17 @@ class HTMLReporter:
             recommendations: Dictionary with PID recommendations for each axis
             recommendations_text: Dictionary with recommendation text for each axis
             segment_plots: Dictionary with plot data for each segment and axis
+            advanced_results: Optional dictionary with advanced analysis results
+            advanced_plots: Optional dictionary with advanced analysis plots
             
         Returns:
             Path to the generated HTML report
         """
         # Create HTML report
-        html = self._generate_html_content(analysis_results, recommendations, 
-                                          recommendations_text, segment_plots)
+        html = self._generate_html_content(
+            analysis_results, recommendations, recommendations_text, segment_plots,
+            advanced_results, advanced_plots
+        )
         
         # Save the HTML report
         report_path = os.path.join(self.output_dir, 
@@ -44,7 +49,8 @@ class HTMLReporter:
         
         return report_path
     
-    def _generate_html_content(self, analysis_results, recommendations, recommendations_text, segment_plots):
+    def _generate_html_content(self, analysis_results, recommendations, recommendations_text, segment_plots,
+                     advanced_results=None, advanced_plots=None):
         """
         Generate the HTML content for the report
         
@@ -53,12 +59,17 @@ class HTMLReporter:
             recommendations: Dictionary with PID recommendations for each axis
             recommendations_text: Dictionary with recommendation text for each axis
             segment_plots: Dictionary with plot data for each segment and axis
+            advanced_results: Optional dictionary with advanced analysis results
+            advanced_plots: Optional dictionary with advanced analysis plots
             
         Returns:
             HTML content as a string
         """
         # Get timestamp for the report
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Check if advanced analysis is available
+        has_advanced = advanced_results is not None and advanced_plots is not None
         
         # Create the HTML content
         html = f"""
@@ -208,7 +219,71 @@ class HTMLReporter:
                     border-radius: 5px;
                     border-left: 5px solid #3498db;
                 }}
+                .advanced-analysis {{
+                    background-color: #fff8f0;
+                    padding: 15px;
+                    margin: 20px 0;
+                    border-radius: 5px;
+                    border-left: 5px solid #e67e22;
+                }}
+                .tabs {{
+                    margin-top: 20px;
+                    overflow: hidden;
+                    border: 1px solid #ccc;
+                    background-color: #f1f1f1;
+                    border-radius: 5px 5px 0 0;
+                }}
+                .tab-button {{
+                    background-color: inherit;
+                    float: left;
+                    border: none;
+                    outline: none;
+                    cursor: pointer;
+                    padding: 10px 16px;
+                    transition: 0.3s;
+                    font-size: 16px;
+                }}
+                .tab-button:hover {{
+                    background-color: #ddd;
+                }}
+                .tab-button.active {{
+                    background-color: #3498db;
+                    color: white;
+                }}
+                .tab-content {{
+                    display: none;
+                    padding: 15px;
+                    border: 1px solid #ccc;
+                    border-top: none;
+                    border-radius: 0 0 5px 5px;
+                    animation: fadeEffect 1s;
+                }}
+                @keyframes fadeEffect {{
+                    from {{opacity: 0;}}
+                    to {{opacity: 1;}}
+                }}
             </style>
+            <script>
+                function openTab(evt, tabName) {{
+                    var i, tabcontent, tabbuttons;
+                    tabcontent = document.getElementsByClassName("tab-content");
+                    for (i = 0; i < tabcontent.length; i++) {{
+                        tabcontent[i].style.display = "none";
+                    }}
+                    tabbuttons = document.getElementsByClassName("tab-button");
+                    for (i = 0; i < tabbuttons.length; i++) {{
+                        tabbuttons[i].className = tabbuttons[i].className.replace(" active", "");
+                    }}
+                    document.getElementById(tabName).style.display = "block";
+                    evt.currentTarget.className += " active";
+                }}
+                
+                // Function to open the default tab when page loads
+                document.addEventListener('DOMContentLoaded', function() {{
+                    // Get the first tab button and click it
+                    document.getElementsByClassName('tab-button')[0].click();
+                }});
+            </script>
         </head>
         <body>
             <div class="container">
@@ -223,6 +298,14 @@ class HTMLReporter:
                     <a href="#tuning-guide">Tuning Guide</a>
                     <a href="#recommendations">Recommendations</a>
                     <a href="#segments">Flight Segments</a>
+        """
+        
+        # Add advanced analysis tab if available
+        if has_advanced:
+            html += '<a href="#advanced">Advanced Analysis</a>'
+        
+        # Add axis-specific links
+        html += """
                     <a href="#roll-recommendations">Roll</a>
                     <a href="#pitch-recommendations">Pitch</a>
                     <a href="#yaw-recommendations">Yaw</a>
@@ -232,6 +315,21 @@ class HTMLReporter:
                     <h2>Analysis Summary</h2>
                     <p>This report analyzes the flight characteristics and PID tuning of your Betaflight-powered drone based on the log file.</p>
                     <p>The analysis examines tracking performance, oscillations, and overall flight behavior to provide recommendations for PID tuning.</p>
+        """
+        
+        # Add info about advanced analysis if available
+        if has_advanced:
+            html += """
+                    <p><strong>Advanced Analysis Enabled:</strong> This report includes additional in-depth analysis techniques:</p>
+                    <ul>
+                        <li><strong>Transfer Function Estimation:</strong> Shows frequency response characteristics</li>
+                        <li><strong>ARX Model Identification:</strong> Creates a mathematical model of your drone's behavior</li>
+                        <li><strong>Wavelet Analysis:</strong> Detects time-varying oscillations across different frequency bands</li>
+                        <li><strong>Performance Index:</strong> Provides comprehensive performance metrics</li>
+                    </ul>
+            """
+            
+        html += f"""
                     <p>Found {len(analysis_results)} flight segments for analysis.</p>
                 </div>
                 
@@ -274,7 +372,57 @@ class HTMLReporter:
                     
                     <p>A well-tuned drone typically shows a smooth curve with no sharp peaks, especially in the mid and high frequency ranges.</p>
                 </div>
-                
+        """
+        
+        # Add advanced analysis guide if available
+        if has_advanced:
+            html += """
+                <div class="advanced-analysis" id="advanced-guide">
+                    <h2>Understanding Advanced Analysis</h2>
+                    
+                    <h3>Transfer Function Analysis</h3>
+                    <p>The transfer function describes how your drone responds to control inputs in the frequency domain:</p>
+                    <ul>
+                        <li><strong>Magnitude plot</strong>: Shows how much the drone amplifies or attenuates inputs at different frequencies</li>
+                        <li><strong>Phase plot</strong>: Shows the time delay between input and output at different frequencies</li>
+                        <li><strong>Coherence plot</strong>: Measures how linearly related the input and output are (values close to 1 are good)</li>
+                    </ul>
+                    <p>Key indicators of good tuning:</p>
+                    <ul>
+                        <li>Smooth roll-off in magnitude plot (no sharp peaks)</li>
+                        <li>Phase margin > 45° at gain crossover (where magnitude = 0dB)</li>
+                        <li>High coherence (>0.8) across flying frequencies (0-20Hz)</li>
+                    </ul>
+                    
+                    <h3>ARX Model Analysis</h3>
+                    <p>ARX (AutoRegressive with eXogenous input) models mathematically represent your drone's dynamics:</p>
+                    <ul>
+                        <li><strong>Model prediction</strong>: Shows how well the mathematical model matches actual flight data</li>
+                        <li><strong>Step response</strong>: Shows how the model predicts your drone would respond to a perfect step input</li>
+                        <li><strong>Fit percentage</strong>: Measures how accurately the model represents your drone's behavior</li>
+                    </ul>
+                    
+                    <h3>Wavelet Analysis</h3>
+                    <p>Wavelet analysis detects oscillations that change over time:</p>
+                    <ul>
+                        <li><strong>Scalogram</strong>: Heat map showing power at different frequencies over time</li>
+                        <li><strong>Dominant frequency</strong>: Tracks the most prominent frequency at each moment</li>
+                        <li><strong>Colored regions</strong>: Highlights times when low (green), mid (yellow), or high (red) frequency oscillations occur</li>
+                    </ul>
+                    
+                    <h3>Performance Index</h3>
+                    <p>The performance index provides comprehensive metrics on your drone's handling:</p>
+                    <ul>
+                        <li><strong>Tracking score</strong>: How well the gyro follows the setpoint</li>
+                        <li><strong>Noise reduction</strong>: How well high-frequency noise is suppressed</li>
+                        <li><strong>Responsiveness</strong>: How quickly the system responds to inputs</li>
+                        <li><strong>Overall score</strong>: Weighted combination of all metrics</li>
+                    </ul>
+                </div>
+            """
+        
+        # Add PID recommendations
+        html += """
                 <div id="recommendations">
                     <h2>PID Tuning Recommendations</h2>
         """
@@ -301,6 +449,145 @@ class HTMLReporter:
                            {rec['frequency']['peak_freq']:.1f}Hz, 
                            power: {rec['frequency']['peak_power']:.1f}
                         </p>
+                    """
+                
+                # Add advanced metrics if available
+                if 'advanced_metrics' in rec:
+                    adv = rec['advanced_metrics']
+                    html += """
+                        <div class="advanced-metrics">
+                            <h4>Advanced Control Metrics:</h4>
+                            <table class="metrics-table">
+                                <tr><th>Metric</th><th>Value</th><th>Interpretation</th></tr>
+                    """
+                    
+                    if 'phase_margin' in adv:
+                        pm = adv['phase_margin']
+                        if pm < 30:
+                            interp = "Very low (stability risk)"
+                            color = "red"
+                        elif pm < 45:
+                            interp = "Low (marginally stable)"
+                            color = "orange"
+                        elif pm <= 75:
+                            interp = "Good (well balanced)"
+                            color = "green"
+                        else:
+                            interp = "High (sluggish response)"
+                            color = "orange"
+                            
+                        html += f"""
+                            <tr>
+                                <td>Phase Margin</td>
+                                <td>{pm:.1f}°</td>
+                                <td style="color:{color}">{interp}</td>
+                            </tr>
+                        """
+                    
+                    if 'crossover_freq' in adv:
+                        cf = adv['crossover_freq']
+                        if cf < 5:
+                            interp = "Low (slow response)"
+                            color = "orange"
+                        elif cf <= 25:
+                            interp = "Good (responsive but stable)"
+                            color = "green"
+                        else:
+                            interp = "High (potential instability)"
+                            color = "red"
+                            
+                        html += f"""
+                            <tr>
+                                <td>Bandwidth</td>
+                                <td>{cf:.1f}Hz</td>
+                                <td style="color:{color}">{interp}</td>
+                            </tr>
+                        """
+                    
+                    if 'rise_time' in adv:
+                        rt = adv['rise_time']
+                        if rt < 0.05:
+                            interp = "Very fast (potential overshoot)"
+                            color = "orange"
+                        elif rt <= 0.2:
+                            interp = "Good (responsive)"
+                            color = "green"
+                        else:
+                            interp = "Slow (sluggish response)"
+                            color = "orange"
+                            
+                        html += f"""
+                            <tr>
+                                <td>Rise Time</td>
+                                <td>{rt:.3f}s</td>
+                                <td style="color:{color}">{interp}</td>
+                            </tr>
+                        """
+                    
+                    if 'overshoot' in adv:
+                        os = adv['overshoot']
+                        if os < 5:
+                            interp = "Very low (overdamped)"
+                            color = "orange"
+                        elif os <= 20:
+                            interp = "Good (well damped)"
+                            color = "green"
+                        else:
+                            interp = "High (underdamped)"
+                            color = "red"
+                            
+                        html += f"""
+                            <tr>
+                                <td>Overshoot</td>
+                                <td>{os:.1f}%</td>
+                                <td style="color:{color}">{interp}</td>
+                            </tr>
+                        """
+                    
+                    if 'settling_time' in adv:
+                        st = adv['settling_time']
+                        if st < 0.3:
+                            interp = "Fast (well tuned)"
+                            color = "green"
+                        elif st <= 0.5:
+                            interp = "Good (acceptable)"
+                            color = "green"
+                        else:
+                            interp = "Slow (needs improvement)"
+                            color = "orange"
+                            
+                        html += f"""
+                            <tr>
+                                <td>Settling Time</td>
+                                <td>{st:.3f}s</td>
+                                <td style="color:{color}">{interp}</td>
+                            </tr>
+                        """
+                    
+                    if 'arx_fit' in adv:
+                        fit = adv['arx_fit']
+                        if fit < 50:
+                            interp = "Poor (non-linear behavior)"
+                            color = "red"
+                        elif fit <= 70:
+                            interp = "Fair (some non-linearities)"
+                            color = "orange"
+                        else:
+                            interp = "Good (linear behavior)"
+                            color = "green"
+                            
+                        html += f"""
+                            <tr>
+                                <td>System Linearity</td>
+                                <td>{fit:.1f}%</td>
+                                <td style="color:{color}">{interp}</td>
+                            </tr>
+                        """
+                    
+                    html += """
+                            </table>
+                            <p><em>These metrics are based on advanced control theory analysis of your drone's behavior.</em></p>
+                        </div>
                     """
                 
                 # Add specific recommendations
@@ -334,6 +621,121 @@ class HTMLReporter:
                         </div>
                     </div>
                 """
+        
+        # Add advanced analysis section if available
+        if has_advanced:
+            html += """
+                <div id="advanced">
+                    <h2>Advanced Analysis</h2>
+                    <p>This section contains in-depth analysis of your drone's flight characteristics using advanced signal processing techniques.</p>
+            """
+            
+            # Add each segment's advanced analysis
+            for segment_id, segment_data in analysis_results.items():
+                html += f"""
+                    <h3>Flight Segment {segment_id+1} Advanced Analysis</h3>
+                """
+                
+                for axis in ['roll', 'pitch', 'yaw']:
+                    if axis in segment_data:
+                        plot_key = f"{segment_id}_{axis}"
+                        if plot_key in advanced_plots:
+                            html += f"""
+                                <div class="axis-data">
+                                    <h4>{axis.upper()} Axis Advanced Analysis</h4>
+                                    
+                                    <div class="tabs">
+                            """
+                            
+                            # Add tabs for each analysis type
+                            if 'transfer_function' in advanced_plots[plot_key]:
+                                html += f"""
+                                    <button class="tab-button" onclick="openTab(event, 'tf_{plot_key}')">Transfer Function</button>
+                                """
+                            
+                            if 'arx_model' in advanced_plots[plot_key]:
+                                html += f"""
+                                    <button class="tab-button" onclick="openTab(event, 'arx_{plot_key}')">ARX Model</button>
+                                """
+                            
+                            if 'wavelet' in advanced_plots[plot_key]:
+                                html += f"""
+                                    <button class="tab-button" onclick="openTab(event, 'wavelet_{plot_key}')">Wavelet Analysis</button>
+                                """
+                            
+                            if 'performance' in advanced_plots[plot_key]:
+                                html += f"""
+                                    <button class="tab-button" onclick="openTab(event, 'perf_{plot_key}')">Performance Metrics</button>
+                                """
+                            
+                            html += "</div>"  # End of tabs
+                            
+                            # Add content for each tab
+                            if 'transfer_function' in advanced_plots[plot_key]:
+                                html += f"""
+                                    <div id="tf_{plot_key}" class="tab-content">
+                                        <div class="plot">
+                                            <img src="data:image/png;base64,{advanced_plots[plot_key]['transfer_function']}" alt="{axis} transfer function">
+                                            <p class="plot-explanation">
+                                                <b>How to interpret:</b> The top plot shows the magnitude response (how much gain at each frequency).
+                                                The middle plot shows the phase response (how much delay at each frequency).
+                                                The bottom plot shows the coherence (how linearly related the input and output are).
+                                                Good tuning shows smooth roll-off in magnitude, good phase margin, and high coherence.
+                                            </p>
+                                        </div>
+                                    </div>
+                                """
+                            
+                            if 'arx_model' in advanced_plots[plot_key]:
+                                html += f"""
+                                    <div id="arx_{plot_key}" class="tab-content">
+                                        <div class="plot">
+                                            <img src="data:image/png;base64,{advanced_plots[plot_key]['arx_model']}" alt="{axis} ARX model">
+                                            <p class="plot-explanation">
+                                                <b>How to interpret:</b> The top plot compares actual gyro data with the model's prediction.
+                                                Better fit means the model is more accurate. The bottom plot shows how the model
+                                                predicts your drone would respond to a perfect step input, revealing properties like
+                                                rise time and settling time.
+                                            </p>
+                                        </div>
+                                    </div>
+                                """
+                            
+                            if 'wavelet' in advanced_plots[plot_key]:
+                                html += f"""
+                                    <div id="wavelet_{plot_key}" class="tab-content">
+                                        <div class="plot">
+                                            <img src="data:image/png;base64,{advanced_plots[plot_key]['wavelet']}" alt="{axis} wavelet analysis">
+                                            <p class="plot-explanation">
+                                                <b>How to interpret:</b> The top plot (scalogram) shows power at different frequencies over time.
+                                                Brighter colors indicate stronger oscillations. The bottom plot tracks the dominant frequency
+                                                at each moment. Colored lines at the bottom highlight when problematic oscillations occur.
+                                            </p>
+                                        </div>
+                                    </div>
+                                """
+                            
+                            if 'performance' in advanced_plots[plot_key]:
+                                html += f"""
+                                    <div id="perf_{plot_key}" class="tab-content">
+                                        <div class="plot">
+                                            <img src="data:image/png;base64,{advanced_plots[plot_key]['performance']}" alt="{axis} performance metrics">
+                                            <p class="plot-explanation">
+                                                <b>How to interpret:</b> This chart shows performance scores in multiple categories.
+                                                Higher scores (green) are better. The overall score combines all metrics into a
+                                                single performance index.
+                                            </p>
+                                        </div>
+                                    </div>
+                                """
+                            
+                            html += """
+                                </div>
+                            """
+                
+            html += """
+                </div>
+            """
         
         # Add segment analysis
         html += """
