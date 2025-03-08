@@ -1,148 +1,175 @@
 # Betaflight Log Analyzer
 
-A tool for analyzing Betaflight blackbox logs and providing PID tuning recommendations.
+A comprehensive tool for analyzing Betaflight blackbox logs and providing PID tuning recommendations based on advanced control theory techniques.
 
-## Features
+## Overview
 
-- Automatic decoding of Betaflight blackbox logs
-- Identification of active flight segments
-- Analysis of flight performance:
-  - Time domain analysis of tracking performance
-  - Frequency domain analysis for oscillation detection
-  - Error metrics calculation
-- PID tuning recommendations:
-  - Specific adjustments for P, I, and D terms
-  - Detailed reasoning for each recommendation
-- Comprehensive HTML report generation:
-  - Interactive navigation
-  - High-quality visualizations
-  - Detailed statistics for each flight segment
-  - Integrated tuning guide
-- Advanced analysis techniques (optional):
-  - Transfer function estimation
-  - System identification using ARX models
-  - Time-frequency analysis using wavelets
-  - Comprehensive performance index
+The Betaflight Log Analyzer is a Python-based tool that helps pilots optimize their drone's flight performance by analyzing blackbox logs. It uses a combination of basic metrics, frequency analysis, and advanced control system techniques to generate data-driven PID tuning recommendations.
+
+Key features:
+- Automatic detection of flight segments
+- Step response analysis for PID tuning
+- Transfer function estimation
+- ARX (AutoRegressive with eXogenous input) modeling
+- Wavelet analysis for time-frequency insights
+- Performance metrics calculation
+- Clear, actionable tuning recommendations
 
 ## Installation
 
-### Requirements
+### Prerequisites
 
-- Python 3.8 or newer
-- `blackbox_decode` executable from the [Blackbox Tools](https://github.com/betaflight/blackbox-tools) repository
+- Python 3.7 or higher
+- [Betaflight Blackbox Tools](https://github.com/betaflight/blackbox-tools) for decoding logs
 
-### Installing from Source
+### Installing Blackbox Tools
 
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/betaflight/blackbox-tools.git
+   cd blackbox-tools
+   ```
+
+2. Compile the tools:
+   ```bash
+   make
+   ```
+
+3. Make note of the path to the `blackbox_decode` executable. Typically, this will be:
+   ```
+   /path/to/blackbox-tools/obj/blackbox_decode
+   ```
+
+### Installing Betaflight Log Analyzer
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/your-username/betaflight-log-analyzer.git
+   cd betaflight-log-analyzer
+   ```
+
+2. Install the required Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## Configuration
+
+By default, the analyzer will look for the `blackbox_decode` executable in common installation locations. If your installation is in a custom location, you can specify it when running the tool or configure it in the source code.
+
+To override the default path when running the tool:
 ```bash
-git clone https://github.com/yourusername/betaflight-log-analyzer.git
-cd betaflight-log-analyzer
-pip install -e .
+python pid_analyzer.py --decode-path /path/to/blackbox-tools/obj/blackbox_decode /path/to/your/LOG00001.BFL
 ```
 
 ## Usage
 
 ### Basic Usage
 
+Analyze a log file and get PID tuning recommendations:
 ```bash
-betaflight-log-analyzer /path/to/your/LOG00001.BFL
+python pid_analyzer.py /path/to/your/LOG00001.BFL
 ```
-
-### Advanced Options
-
-```bash
-betaflight-log-analyzer /path/to/your/LOG00001.BFL \
-    --blackbox-decode /path/to/blackbox_decode \
-    --throttle-threshold 1500 \
-    --output-dir /path/to/output
-```
-
-### Command Line Arguments
-
-- `log_file`: Path to the blackbox log file (required)
-- `--blackbox-decode`: Path to the blackbox_decode executable (optional, will try to find automatically)
-- `--throttle-threshold`: Throttle value above which flight is considered active (default: 1300)
-- `--output-dir`: Directory to save report and plots (default: creates a directory named after the log file)
-- `--advanced`: Enable advanced analysis techniques (transfer function, ARX modeling, etc.)
-- `--skip-wavelet`: Skip wavelet analysis when using advanced mode (can be computationally intensive)
-
-## Understanding the Reports
-
-### Time Domain Analysis
-
-The time domain graphs show:
-- Blue line: Setpoint (what your drone is trying to do)
-- Red line: Gyro (what your drone actually did)
-- Green line: Error (difference between setpoint and gyro)
-
-Good tuning shows minimal error and prompt response to setpoint changes.
-
-### Frequency Domain Analysis
-
-The frequency domain graphs show:
-- Green area (0-10Hz): Low frequency oscillations (often related to P and I term issues)
-- Orange area (10-30Hz): Mid frequency oscillations (often related to P term)
-- Red area (>30Hz): High frequency oscillations (often related to D term and noise issues)
-
-A well-tuned drone typically shows a smooth curve with no sharp peaks.
 
 ### Advanced Analysis
 
-The advanced analysis mode offers sophisticated techniques for deeper insights:
+For more detailed analysis including transfer functions, ARX modeling, wavelet analysis, and performance metrics:
+```bash
+python pid_analyzer.py --advanced /path/to/your/LOG00001.BFL
+```
 
-#### Transfer Function Analysis
-Shows frequency response characteristics of your drone using:
-- Magnitude plot: How much your drone amplifies signals at different frequencies
-- Phase plot: Time delay between input and output
-- Coherence plot: How linearly related input and output are
+### Options
 
-#### ARX Model Identification
-Creates a mathematical model of your drone's behavior:
-- Predicts how your drone responds to inputs
-- Shows theoretical step response
-- Calculates fit quality (how well the model matches reality)
+```
+--help                Show help message and exit
+--advanced            Perform advanced analysis (transfer function, ARX modeling, etc.)
+--decode-path PATH    Path to blackbox_decode executable
+--output-dir DIR      Directory to save analysis files (default: <log_directory>/<log_name>_analysis)
+--no-plots            Skip generating plots (faster analysis)
+```
 
-#### Wavelet Analysis
-Detects time-varying oscillations across frequency bands:
-- Scalogram: Shows power at different frequencies over time
-- Dominant frequency tracking: Shows how frequency content changes
-- Highlights problematic frequency regions
+## Analysis Methods
 
-#### Performance Index
-Provides a comprehensive scoring system for handling characteristics:
-- Tracking score: How well gyro follows setpoint
-- Noise reduction: How well high-frequency noise is suppressed
-- Responsiveness: How quickly your drone responds to inputs
+The Betaflight Log Analyzer uses several techniques to analyze flight performance:
 
-To use these features, add the `--advanced` flag:
+### Basic Analysis
+
+- **Step Response Analysis**: Identifies how the drone responds to rapid changes in setpoint
+- **Tracking Error Metrics**: Measures how well the gyro follows the setpoint
+- **Frequency Domain Analysis**: Identifies oscillations and resonances
+
+### Advanced Analysis
+
+- **Transfer Function Estimation**: Models the drone's frequency response
+- **ARX Modeling**: Creates a mathematical model of your drone's behavior
+- **Wavelet Analysis**: Detects time-varying oscillations across different frequency bands
+- **Performance Index**: Computes comprehensive performance metrics
+
+## Recommendations
+
+Based on the analysis, the tool provides recommendations for adjusting PID values. Recommendations include:
+
+1. **What to Change**: Specific PID term adjustments (P, I, or D) with exact percentages
+2. **What to Change First**: Prioritized recommendations to tackle the most significant issues first
+3. **Why to Change**: Detailed explanations of the analysis that led to each recommendation
+
+The recommendations are customized for each axis (Roll, Pitch, and Yaw) based on its specific characteristics.
+
+### Understanding the Recommendations
+
+The PID recommendations are based on multiple factors:
+
+- **P-term** (Proportional):
+  - Increased when response is too slow or phase margin is high (overdamped system)
+  - Decreased when oscillations or resonances are detected
+
+- **I-term** (Integral):
+  - Increased when persistent errors or slow settling time is detected
+  - Decreased when low-frequency oscillations are present
+
+- **D-term** (Derivative):
+  - Increased when mid-frequency oscillations need additional damping
+  - Decreased when high-frequency noise is detected
+
+## Output
+
+The analyzer generates multiple outputs:
+
+1. **Command Line Summary**: A concise overview of the findings and recommendations
+2. **HTML Report**: A detailed report with visualizations and explanations
+3. **Plot Files**: PNG images of all generated plots for further inspection
+4. **Processed Data**: CSV files with the analyzed data
+
+## Development
+
+### Running Tests
 
 ```bash
-betaflight-log-analyzer /path/to/your/LOG00001.BFL --advanced
+python run_tests.py
 ```
 
-## Project Structure
+### Code Structure
 
-```
-betaflight_log_analyzer/
-├── __init__.py
-├── __main__.py
-├── main.py
-├── utils/
-│   ├── __init__.py
-│   └── log_reader.py
-├── analysis/
-│   ├── __init__.py
-│   ├── segment_analyzer.py
-│   ├── pid_recommender.py
-│   └── advanced_analysis.py
-├── visualization/
-│   ├── __init__.py
-│   ├── plots.py
-│   └── advanced_plots.py
-└── reports/
-    ├── __init__.py
-    └── html_reporter.py
-```
+- `betaflight_log_analyzer/`: Main package
+  - `analysis/`: Analysis modules (PID, segment, frequency, etc.)
+  - `data/`: Data handling modules
+  - `reports/`: Report generation
+  - `visualization/`: Plotting and visualization
+- `tests/`: Unit tests
+- `pid_analyzer.py`: Main entry point
+
+## Troubleshooting
+
+If you encounter issues with Blackbox log decoding:
+1. Ensure the blackbox-tools are correctly compiled
+2. Verify the path to blackbox_decode is correct
+3. Check that your log files are valid Betaflight blackbox logs (.BFL or .BBL format)
+
+## Acknowledgements
+
+- The Betaflight Team for creating the underlying firmware and blackbox tools
+- The FPV community for their insights on PID tuning
 
 ## License
 
-MIT 
+[MIT License](LICENSE) 

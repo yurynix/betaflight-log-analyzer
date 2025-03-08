@@ -143,7 +143,55 @@ class PIDRecommender:
                     'peak_power': np.mean(aggregated[axis]['peak_power'])
                 }
                 
-            all_recommendations_text[axis] = recommendations_text
+            # Add prioritization recommendation
+            priority_term, priority_reason = self._prioritize_adjustment(p_adjustment, i_adjustment, d_adjustment, axis)
+            
+            # Determine if the tune is good or not
+            is_well_tuned = (abs(p_adjustment) <= 5 and abs(i_adjustment) <= 5 and abs(d_adjustment) <= 5)
+            
+            # Create a simplified summary focused on what to change
+            simple_summary = []
+            if is_well_tuned:
+                simple_summary.append(f"Your {axis.upper()} axis appears to be well-tuned! No significant adjustments needed.")
+                # Add reasons why it's considered well-tuned
+                if aggregated[axis]['error_rms'] and np.mean(aggregated[axis]['error_rms']) < 10:
+                    simple_summary.append(f"- Low tracking error (RMS: {np.mean(aggregated[axis]['error_rms']):.1f})")
+                if 'peak_power' in aggregated[axis] and aggregated[axis]['peak_power'] and np.mean(aggregated[axis]['peak_power']) < 100:
+                    simple_summary.append(f"- Low oscillations (power: {np.mean(aggregated[axis]['peak_power']):.1f})")
+            else:
+                # Create an actionable summary
+                if priority_term:
+                    # Add the primary recommendation with WHAT and WHY
+                    if priority_term == 'P':
+                        adjustment = p_adjustment
+                    elif priority_term == 'I':
+                        adjustment = i_adjustment
+                    else:  # D term
+                        adjustment = d_adjustment
+                        
+                    direction = "Increase" if adjustment > 0 else "Decrease"
+                    simple_summary.append(f"RECOMMENDED ACTION: {direction} {priority_term} by {abs(adjustment)}% [Adjust first]")
+                    simple_summary.append(f"- {priority_reason}")
+                    
+                    # Add secondary adjustments if significant
+                    if priority_term != 'P' and abs(p_adjustment) > 5:
+                        simple_summary.append(f"- After testing, also {'increase' if p_adjustment > 0 else 'decrease'} P by {abs(p_adjustment)}%")
+                    if priority_term != 'I' and abs(i_adjustment) > 5:
+                        simple_summary.append(f"- After testing, also {'increase' if i_adjustment > 0 else 'decrease'} I by {abs(i_adjustment)}%")
+                    if priority_term != 'D' and abs(d_adjustment) > 5:
+                        simple_summary.append(f"- After testing, also {'increase' if d_adjustment > 0 else 'decrease'} D by {abs(d_adjustment)}%")
+                else:
+                    # Generic tune is off but no priority identified
+                    simple_summary.append(f"Your {axis.upper()} axis tuning could be improved, but only minor adjustments are recommended:")
+                    if p_adjustment != 0:
+                        simple_summary.append(f"- {'Increase' if p_adjustment > 0 else 'Decrease'} P by {abs(p_adjustment)}%")
+                    if i_adjustment != 0:
+                        simple_summary.append(f"- {'Increase' if i_adjustment > 0 else 'Decrease'} I by {abs(i_adjustment)}%")
+                    if d_adjustment != 0:
+                        simple_summary.append(f"- {'Increase' if d_adjustment > 0 else 'Decrease'} D by {abs(d_adjustment)}%")
+            
+            # Add the summary to the recommendations
+            recommendations[axis]['simple_summary'] = simple_summary
             
             # Add confidence level to recommendations text
             confidence_percent = min(confidence, 1.0) * 100
@@ -157,18 +205,22 @@ class PIDRecommender:
                     confidence_text += " (Low - limited analysis available)"
             else:
                 confidence_text += " (Based on basic analysis only)"
-            
-            # Add prioritization recommendation
-            priority_term, priority_reason = self._prioritize_adjustment(p_adjustment, i_adjustment, d_adjustment, axis)
-            if priority_term:
-                priority_text = f"Suggested first adjustment: {priority_term} {priority_reason}"
-                recommendations_text.append(priority_text)
                 
             all_recommendations_text[axis] = recommendations_text
             all_recommendations_text[axis].append(confidence_text)
             
             # Print out recommendations for the axis
             self._print_recommendations(axis, recommendations[axis], recommendations_text)
+        
+        # Print a clear bottom line summary for all axes
+        print("\n" + "="*50)
+        print("SUMMARY: WHAT TO CHANGE")
+        print("="*50)
+        for axis in ['roll', 'pitch', 'yaw']:
+            if axis in recommendations:
+                print(f"\n{axis.upper()} AXIS:")
+                for line in recommendations[axis]['simple_summary']:
+                    print(line)
         
         return recommendations, all_recommendations_text
     
@@ -719,8 +771,8 @@ class PIDRecommender:
         return result
     
     def _print_recommendations(self, axis, recommendations, text):
-        """Print recommendations for an axis"""
-        print(f"\n{axis.upper()} Axis Tuning Recommendations:")
+        """Print detailed recommendations for an axis"""
+        print(f"\n{axis.upper()} Axis - DETAILED Analysis:")
         
         # Print basic metrics
         print(f"Average error metrics: mean={recommendations['error_metrics']['mean']:.1f}, "
@@ -732,15 +784,13 @@ class PIDRecommender:
             print(f"Average dominant frequency: {recommendations['frequency']['peak_freq']:.1f}Hz, "
                  f"power: {recommendations['frequency']['peak_power']:.1f}")
         
-        # Print confidence level only once (it's in the text list now)
-        
         # Print specific recommendations
         for rec in text:
             if isinstance(rec, str):  # Make sure it's a string
                 print(f"- {rec}")
         
         # Print PID adjustments
-        print("\nRecommended PID adjustments:")
+        print("\nCalculated PID adjustments:")
         print(f"P: {recommendations['P']:+d}%")
         print(f"I: {recommendations['I']:+d}%")
         print(f"D: {recommendations['D']:+d}%")
