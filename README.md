@@ -44,7 +44,7 @@ Key features:
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-username/betaflight-log-analyzer.git
+   git clone https://github.com/yurynix/betaflight-log-analyzer.git
    cd betaflight-log-analyzer
    ```
 
